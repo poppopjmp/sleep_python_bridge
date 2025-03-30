@@ -320,3 +320,235 @@ Start a webserver from output/html directory
 
 Connect to http://localhost:8000/beacons.html
 
+## Overview of the Project
+
+This project provides a bridge between the Sleep and Python languages, allowing for the control of a Cobalt Strike teamserver through Python without the need for the standard GUI client. The project includes various Python scripts and modules for interacting with a Cobalt Strike teamserver.
+
+### Main Scripts
+
+- `beacongrapher.py`: Implementation of a beacon graph tracker that uses an HTML JavaScript directed graph to display beacons.
+- `beaconlogtracker.py`: Implementation of a beacon log tracker that uses an HTML data grid to display beacon logs.
+- `example.py`: Example script demonstrating how to use the sleep_python_bridge modules to interact with a Cobalt Strike teamserver.
+- `payloadgenerator.py`: Implementation of a beacon payload generator that creates payloads for each listener.
+
+### Modules
+
+- `sleep_python_bridge/artifactor.py`: A set of functions to inspect and review artifacts and collect and track IoCs.
+- `sleep_python_bridge/compyler.py`: A set of functions to compile various payloads from platform or cross-platform.
+- `sleep_python_bridge/sleepy.py`: A set of functions to help facilitate a bridge between Sleep objects and Python objects.
+- `sleep_python_bridge/striker.py`: A set of functions to interact with Cobalt Strike and execute functionality typically only accessible via Sleep/GUI.
+
+### HTML Files
+
+The repository includes HTML files for visualizing beacon logs and graphs in the `output/html` directory. These files provide a user-friendly interface for viewing and analyzing beacon data.
+
+## Usage Instructions
+
+### beacongrapher.py
+
+The `beacongrapher.py` script updates the file `output/data/beacons.json` and displays beacons in a directed graph.
+
+Usage:
+
+```bash
+python3 beacongrapher.py 127.0.0.1 50050 grapher password /path/to/cobaltstrike
+```
+
+This will create the `beacons.json` file used by the JavaScript grapher. Start a webserver from the `output/html` directory:
+
+```bash
+python3 -m http.server 8000
+```
+
+Connect to [http://localhost:8000/beacons.html](http://localhost:8000/beacons.html) to view the beacon graph.
+
+### beaconlogtracker.py
+
+The `beaconlogtracker.py` script connects to a teamserver, extracts the running beacon logs every 30 seconds, saves them to `beaconlogs.json`, and displays them in a searchable and sortable HTML data grid.
+
+Usage:
+
+```bash
+python3 beaconlogtracker.py 127.0.0.1 50050 logtracker password /path/to/cobaltstrike
+```
+
+This will keep `beaconlogs.json` synced with saved and running beacon logs. It syncs every 30 seconds. Start a webserver from the `output/html` directory:
+
+```bash
+python3 -m http.server 8000
+```
+
+Connect to [http://localhost:8000/beaconlogs.html](http://localhost:8000/beaconlogs.html) to view the beacon logs.
+
+### example.py
+
+The `example.py` script demonstrates how to use the sleep_python_bridge modules to interact with a Cobalt Strike teamserver.
+
+Usage:
+
+```bash
+python3 example.py 127.0.0.1 50050 example password /path/to/cobaltstrike
+```
+
+### payloadgenerator.py
+
+The `payloadgenerator.py` script connects to the teamserver, loads additional scripts, and creates payloads for each listener.
+
+Usage (No external kits):
+
+```bash
+python3 payloadgenerator.py 127.0.0.1 50050 payloads password /path/to/cobaltstrike
+```
+
+Usage (with external kit):
+
+1. Update the `/path/to/arsenal_kit/arsenal_kit.config` file to enable the artifact and sleep mask kits.
+2. [Optional] Make any modifications to the artifact and sleep mask kits as needed.
+3. Build the arsenal kit with `/path/to/arsenal_kit/build_arsenal_kit.sh`.
+4. Copy the arsenal kit distribution files to the `payload_scripts` directory:
+
+```bash
+cp -r /path/to/arsenal_kit/dist/* /path/to/sleep_python_bridge/payload_scripts
+```
+
+5. [Optional] See the logging section for more information on additional modifications.
+6. Run the script:
+
+```bash
+python3 payloadgenerator.py 127.0.0.1 50050 payloads password /path/to/cobaltstrike
+```
+
+#### Logging
+
+Normally, when using the GUI, the external scripts can use the `println` aggressor function to output information to the Script Console, which is useful for feedback or debugging. When using the `payloadgenerator.py`, the `println` output is lost, and the only option available is the `elog` function. When using `elog`, the GUI is needed to view the information in the Event Log.
+
+Continuing from the 'with external kit' usage example, update the `/path/to/sleep_python_bridge/payload_scripts/arsenal_kit.cna` file and change the two occurrences of `println` to `elog`. With this change, all the arsenal kit logging will now be available in the GUI Event Log.
+
+#### Loading of External Scripts
+
+Loading external scripts is not always needed except for payload modification scripts that include payload hooks (i.e., artifact, sleep mask, and udrl kits). If you load scripts from the Cobalt Strike GUI, payloads will honor these scripts from the GUI but not from the agscript client (These are different clients). You must add the scripts and supporting files into the `payload_scripts` directory.
+
+The `payloadgenerator.py` will automatically load any `.cna` script that is located at the top-level `payload_scripts` directory. Any `.cna` script that is located in a subdirectory will not be loaded.
+
+Example directory structure with the Arsenal Kit:
+
+```bash
+$ ls -1R ./payload_scripts
+./payload_scripts:
+arsenal_kit.cna
+artifact
+sleepmask
+
+./payload_scripts/artifact:
+artifact32big.dll
+artifact32big.exe
+artifact32.dll
+artifact32.exe
+artifact32svcbig.exe
+artifact32svc.exe
+artifact64big.exe
+artifact64big.x64.dll
+artifact64.exe
+artifact64svcbig.exe
+artifact64svc.exe
+artifact64.x64.dll
+artifact.cna
+
+./payload_scripts/sleepmask:
+sleepmask.cna
+sleepmask_pivot.x64.o
+sleepmask_pivot.x86.o
+sleepmask.x64.o
+sleepmask.x86.o
+```
+
+#### Usage (additional options for 4.8)
+
+Thanks to a recent update provided by @mgeeky, the `payloadgenerator.py` script now supports additional arguments to support new `artifact_payload` function parameters added in 4.8. With these arguments, you now have more control over what payloads are generated.
+
+```bash
+$ python3 payloadgenerator.py --help
+------------------------
+Beacon Payload Generator
+------------------------
+usage: payloadgenerator.py [-h] [-o path] [-l name] [-a arch] [-t types] [-e exit] [-c method] host port username password path
+
+positional arguments:
+  host                  The teamserver host.
+  port                  The teamserver port.
+  username              The desired username.
+  password              The teamserver password.
+  path                  Directory to CobaltStrike
+
+optional arguments:
+  -h, --help            show this help message and exit
+
+optional parameters:
+  -o path, --payload-path path
+                        Where to save generated payloads. Default: output/payloads/
+  -l name, --listener name
+                        Specify listener name to get payloads for. Default: payloads for all listeners will be produced
+  -a arch, --arch arch  Specify payload architecture. Choices: x86, x64. Default: payloads for both are generated
+  -t types, --payload-types types
+                        Comma separated list of payload types to generate keyed by file extensions. Choices: exe,dll,svc.exe,bin,ps1,py,vbs or use 'all' to compile all at once.
+                        Default: exe,dll,bin
+  -e exit, --exit exit  Payload exit method. Choices: thread, process. Default: process
+  -c method, --call-method method
+                        System call method. Choices: indirect, direct, none. Default: <empty> (backwards compatible with Cobalt pre 4.8)
+```
+
+#### Examples
+
+```bash
+$python3 payloadgenerator.py 127.0.0.1 50050 payloads password /path/to/cobaltstrike -o /share/payloads/ -c indirect -a x64
+------------------------
+Beacon Payload Generator
+------------------------
+[*] Connecting to teamserver: 127.0.0.1
+Loading cna scripts from ./payload_scripts
+
+Scripts
+-------
+arsenal_kit.cna
+console.cna
+
+[*] Creating stageless payloads for listener: http1
+[*] Creating http1.x64.exe
+[*] Creating http1.x64.dll
+[*] Creating http1.x64.bin
+
+$python3 payloadgenerator.py 127.0.0.1 50050 payloads password /path/to/cobaltstrike -o /share/payloads/ -c indirect -a x64 -t exe
+------------------------
+Beacon Payload Generator
+------------------------
+[*] Connecting to teamserver: 127.0.0.1
+Loading cna scripts from ./payload_scripts
+
+Scripts
+-------
+arsenal_kit.cna
+console.cna
+
+[*] Creating stageless payloads for listener: http1
+[*] Creating http1.x64.exe
+
+$python3 payloadgenerator.py 127.0.0.1 50050 payloads password /path/to/cobaltstrike -o /share/payloads/
+------------------------
+Beacon Payload Generator
+------------------------
+[*] Connecting to teamserver: 127.0.0.1
+Loading cna scripts from ./payload_scripts
+
+Scripts
+-------
+arsenal_kit.cna
+console.cna
+
+[*] Creating stageless payloads for listener: http1
+[*] Creating http1.x86.exe
+[*] Creating http1.x86.dll
+[*] Creating http1.x86.bin
+[*] Creating http1.x64.exe
+[*] Creating http1.x64.dll
+[*] Creating http1.x64.bin
+```
